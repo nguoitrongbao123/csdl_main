@@ -8,10 +8,16 @@
 #include "pump.h"
 #include <stdio.h>
 #include <string.h>
+#include <stdbool.h>  // Cần cho biến logic
+#include <stdint.h>
 
 extern I2C_HandleTypeDef hi2c1;
 extern TIM_HandleTypeDef htim1;
 extern ADC_HandleTypeDef hadc1;
+
+// ==== Biến toàn cục ====
+uint32_t lastManualControlTime = 0;
+bool manualControlActive = false;
 
 int main(void)
 {
@@ -34,64 +40,74 @@ int main(void)
     uint8_t lightStatus = 0;
     char msg[128];
     char controlBuffer[32] = {0};
+
     while (1)
     {
-        // Đọc cảm biến DHT11
+        // ==== Đọc lệnh từ ESP32 ====
+        memset(controlBuffer, 0, sizeof(controlBuffer));
+        HAL_I2C_Master_Receive(&hi2c1, 0x42 << 1, (uint8_t*)controlBuffer, sizeof(controlBuffer), HAL_MAX_DELAY);
+
+        if (strstr(controlBuffer, "P:1")) {
+            Pump_On();
+            pumpStatus = 1;
+            manualControlActive = true;
+            lastManualControlTime = HAL_GetTick();
+        } else if (strstr(controlBuffer, "P:0")) {
+            Pump_Off();
+            pumpStatus = 0;
+            manualControlActive = true;
+            lastManualControlTime = HAL_GetTick();
+        }
+
+        if (strstr(controlBuffer, "D:1")) {
+            GPIOA->BSRR = (1 << 5);
+            lightStatus = 1;
+            manualControlActive = true;
+            lastManualControlTime = HAL_GetTick();
+        } else if (strstr(controlBuffer, "D:0")) {
+            GPIOA->BSRR = (1 << (5 + 16));
+            lightStatus = 0;
+            manualControlActive = true;
+            lastManualControlTime = HAL_GetTick();
+        }
+
+        // ==== Đọc cảm biến ====
         if (DHT11_Read_Data(&temperature, &humidity) != 0) {
             temperature = 0;
             humidity = 0;
         }
 
-        // light
         ldr_value = LDR_Read();
-        if (ldr_value < 200) {
-            GPIOA->BSRR = (1 << 5);         // PA5 HIGH
-            lightStatus = 1;
-        } else {
-            GPIOA->BSRR = (1 << (5 + 16));  // PA5 LOW
-            lightStatus = 0;
-        }
-
-
-        // soil hum
         soil_percent = Soil_ReadPercent();
-        if (soil_percent < 50) {
-            Pump_On();
-            pumpStatus = 1;
-        } else {
-            Pump_Off();
-            pumpStatus = 0;
+
+        // ==== Chế độ tự động chỉ hoạt động sau 60s ====
+        if (!manualControlActive || (HAL_GetTick() - lastManualControlTime > 60000)) {
+            manualControlActive = false; // reset
+
+            // Điều khiển đèn
+            if (ldr_value < 200) {
+                GPIOA->BSRR = (1 << 5);
+                lightStatus = 1;
+            } else {
+                GPIOA->BSRR = (1 << (5 + 16));
+                lightStatus = 0;
+            }
+
+            // Điều khiển bơm
+            if (soil_percent < 50) {
+                Pump_On();
+                pumpStatus = 1;
+            } else {
+                Pump_Off();
+                pumpStatus = 0;
+            }
         }
 
-              // Gửi dữ liệu cảm biến sang ESP32
+        // ==== Gửi dữ liệu lên ESP32 ====
         sprintf(msg, "TEMP:%d,HUM:%d,SOIL:%d,P:%d,D:%d\n",
                 temperature, humidity, soil_percent, pumpStatus, lightStatus);
-
         HAL_I2C_Master_Transmit(&hi2c1, 0x42 << 1, (uint8_t*)msg, strlen(msg), HAL_MAX_DELAY);
 
-
-         // ==== ĐỌC LỆNH TỪ ESP32 ====
-        memset(controlBuffer, 0, sizeof(controlBuffer));  // reset buffer
-        HAL_I2C_Master_Receive(&hi2c1, 0x42 << 1, (uint8_t*)controlBuffer, sizeof(controlBuffer), HAL_MAX_DELAY);
-
-        // ==== PHÂN TÍCH CHUỖI ====
-        if (strstr(controlBuffer, "P:1")) {
-            Pump_On();
-            pumpStatus = 1;
-        } else if (strstr(controlBuffer, "P:0")) {
-            Pump_Off();
-            pumpStatus = 0;
-        }
-
-        if (strstr(controlBuffer, "D:1")) {
-            GPIOA->BSRR = (1 << 5);         // PA5 HIGH
-            lightStatus = 1;
-        } else if (strstr(controlBuffer, "D:0")) {
-            GPIOA->BSRR = (1 << (5 + 16));  // PA5 LOW
-            lightStatus = 0;
-        }
         HAL_Delay(2000);
     }
-   
-
 }
