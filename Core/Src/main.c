@@ -33,7 +33,7 @@ int main(void)
     uint8_t pumpStatus = 0;
     uint8_t lightStatus = 0;
     char msg[128];
-
+    char controlBuffer[32] = {0};
     while (1)
     {
         // Đọc cảm biến DHT11
