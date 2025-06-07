@@ -71,4 +71,25 @@ int main(void)
 
         HAL_Delay(2000);
     }
+    // ==== ĐỌC LỆNH TỪ ESP32 ====
+char controlBuffer[32] = {0};
+HAL_I2C_Master_Receive(&hi2c1, 0x42 << 1, (uint8_t*)controlBuffer, sizeof(controlBuffer), HAL_MAX_DELAY);
+
+// ==== PHÂN TÍCH CHUỖI ====
+if (strstr(controlBuffer, "P:1")) {
+    Pump_On();
+    pumpStatus = 1;
+} else if (strstr(controlBuffer, "P:0")) {
+    Pump_Off();
+    pumpStatus = 0;
+}
+
+if (strstr(controlBuffer, "D:1")) {
+    GPIOA->BSRR = (1 << 5);         // PA5 HIGH
+    lightStatus = 1;
+} else if (strstr(controlBuffer, "D:0")) {
+    GPIOA->BSRR = (1 << (5 + 16));  // PA5 LOW
+    lightStatus = 0;
+}
+
 }
