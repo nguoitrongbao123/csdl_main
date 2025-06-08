@@ -19,10 +19,10 @@ char pass[] = "22022111";
 // ==== BIẾN ====
 int temp = 0, hum = 0, soil = 0;
 int pumpStatus = 0, lightStatus = 0;
-String controlBuffer = "P:0,D:0\n";  // Chuỗi điều khiển gửi về STM32
+unsigned long last_request = 0;
+
 String incomingData = "";
 
-// ==== NHẬN DỮ LIỆU TỪ STM32 (I2C MASTER GỬI) ====
 void receiveEvent(int len) {
   incomingData = "";
   while (Wire.available()) {
@@ -46,39 +46,15 @@ void receiveEvent(int len) {
     Blynk.virtualWrite(V1, soil);
     Blynk.virtualWrite(V3, pumpStatus);
     Blynk.virtualWrite(V4, lightStatus);
-
-    updateControlBuffer();  // Đồng bộ lại buffer điều khiển
   }
 }
 
-// ==== CẬP NHẬT BUFFER KHI CÓ LỆNH MỚI ====
-void updateControlBuffer() {
-  controlBuffer = "P:" + String(pumpStatus) + ",D:" + String(lightStatus) + "\n";
-  Serial.print("Buffer gửi STM32: ");
-  Serial.println(controlBuffer);
-}
-
-// ==== NHẬN LỆNH TỪ BLYNK ====
-BLYNK_WRITE(V3) {
-  pumpStatus = param.asInt();  // 0 hoặc 1
-  updateControlBuffer();
-}
-BLYNK_WRITE(V4) {
-  lightStatus = param.asInt();
-  updateControlBuffer();
-}
-
-// ==== TRẢ DỮ LIỆU KHI STM32 YÊU CẦU ====
-void requestEvent() {
-  Wire.write((const uint8_t*)controlBuffer.c_str(), controlBuffer.length());
-}
 
 // ==== SETUP ====
 void setup() {
   Serial.begin(115200);
   Wire.begin(0x42);  // ESP32 làm slave địa chỉ 0x42
   Wire.onReceive(receiveEvent);
-  Wire.onRequest(requestEvent);                 // Trả dữ liệu cho STM32 khi được gọi
   Blynk.begin(BLYNK_AUTH_TOKEN, ssid, pass);
 }
 
