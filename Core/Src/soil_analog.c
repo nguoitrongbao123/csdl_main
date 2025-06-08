@@ -18,29 +18,29 @@ void Soil_Analog_Init(void)
 uint16_t Soil_ReadRaw(void)
 {
     ADC_ChannelConfTypeDef sConfig = {0};
-    sConfig.Channel = SOIL_ADC_CHANNEL;
-    sConfig.Rank = 1;
-    sConfig.SamplingTime = ADC_SAMPLETIME_3CYCLES;
-    HAL_ADC_ConfigChannel(&hadc1, &sConfig);
+    sConfig.Channel = SOIL_ADC_CHANNEL;            // Kênh ADC tương ứng với PA4
+    sConfig.Rank = 1;                              // Ưu tiên đọc đầu tiên
+    sConfig.SamplingTime = ADC_SAMPLETIME_3CYCLES; // Thời gian lấy mẫu nhanh
 
-    HAL_ADC_Start(&hadc1);
-    HAL_ADC_PollForConversion(&hadc1, HAL_MAX_DELAY);
-    uint16_t val = HAL_ADC_GetValue(&hadc1);
-    HAL_ADC_Stop(&hadc1);
+    HAL_ADC_ConfigChannel(&hadc1, &sConfig);       // Cấu hình kênh ADC
+
+    HAL_ADC_Start(&hadc1);                         // Bắt đầu chuyển đổi
+    HAL_ADC_PollForConversion(&hadc1, HAL_MAX_DELAY); // Chờ đến khi xong
+    uint16_t val = HAL_ADC_GetValue(&hadc1);       // Đọc giá trị
+    HAL_ADC_Stop(&hadc1);                          // Dừng ADC
 
     return val;
 }
 
 uint8_t Soil_ReadPercent(void)
 {
-    uint16_t raw = Soil_ReadRaw();
+    uint16_t raw = Soil_ReadRaw(); // Đọc ADC thô
 
-    const uint16_t WET_RAW = 2700;
-    const uint16_t DRY_RAW = 3600;
+    const uint16_t WET_RAW = 2700; // Ngưỡng đất ẩm nhất (ướt)
+    const uint16_t DRY_RAW = 3600; // Ngưỡng đất khô nhất
 
-    if (raw <= WET_RAW) return 100;
-    if (raw >= DRY_RAW) return 0;
+    if (raw <= WET_RAW) return 100;  // Nếu nhỏ hơn mức ướt → 100%
+    if (raw >= DRY_RAW) return 0;    // Nếu lớn hơn mức khô → 0%
 
     return (DRY_RAW - raw) * 100 / (DRY_RAW - WET_RAW);
 }
-
