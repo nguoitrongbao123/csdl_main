@@ -33,10 +33,10 @@ int main(void)
     uint8_t pumpStatus = 0;
     uint8_t lightStatus = 0;
     char msg[128];
-    char controlBuffer[32] = {0};
+
     while (1)
     {
-        // Đọc cảm biến DHT11
+        // DHT11
         if (DHT11_Read_Data(&temperature, &humidity) != 0) {
             temperature = 0;
             humidity = 0;
@@ -63,35 +63,12 @@ int main(void)
             pumpStatus = 0;
         }
 
-              // Gửi dữ liệu cảm biến sang ESP32
+
         sprintf(msg, "TEMP:%d,HUM:%d,SOIL:%d,P:%d,D:%d\n",
                 temperature, humidity, soil_percent, pumpStatus, lightStatus);
 
         HAL_I2C_Master_Transmit(&hi2c1, 0x42 << 1, (uint8_t*)msg, strlen(msg), HAL_MAX_DELAY);
 
-
-         // ==== ĐỌC LỆNH TỪ ESP32 ====
-        memset(controlBuffer, 0, sizeof(controlBuffer));  // reset buffer
-        HAL_I2C_Master_Receive(&hi2c1, 0x42 << 1, (uint8_t*)controlBuffer, sizeof(controlBuffer), HAL_MAX_DELAY);
-
-        // ==== PHÂN TÍCH CHUỖI ====
-        if (strstr(controlBuffer, "P:1")) {
-            Pump_On();
-            pumpStatus = 1;
-        } else if (strstr(controlBuffer, "P:0")) {
-            Pump_Off();
-            pumpStatus = 0;
-        }
-
-        if (strstr(controlBuffer, "D:1")) {
-            GPIOA->BSRR = (1 << 5);         // PA5 HIGH
-            lightStatus = 1;
-        } else if (strstr(controlBuffer, "D:0")) {
-            GPIOA->BSRR = (1 << (5 + 16));  // PA5 LOW
-            lightStatus = 0;
-        }
         HAL_Delay(2000);
     }
-   
-
 }
