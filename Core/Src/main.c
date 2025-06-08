@@ -15,50 +15,52 @@ extern ADC_HandleTypeDef hadc1;
 
 int main(void)
 {
-    HAL_Init();
-    SystemClock_Config();
-    MX_I2C1_Init();
-    MX_TIM1_Init();
-    MX_ADC1_Init();
-    MX_GPIO_Init();
+    HAL_Init();                 // Reset all peripherals and initialize HAL
+SystemClock_Config();           // Configure system clock
 
-    HAL_TIM_Base_Start(&htim1);
-    DHT11_Init();
-    Soil_Analog_Init();
-    Pump_Init();
+MX_I2C1_Init();                 // Initialize I2C1 peripheral
+MX_TIM1_Init();                 // Initialize Timer 1
+MX_ADC1_Init();                 // Initialize ADC (for soil sensor)
+MX_GPIO_Init();                 // Initialize GPIO ports
+
+    HAL_TIM_Base_Start(&htim1);  // Start base timer (may be used for delay or PWM timing)
+DHT11_Init();                    // Initialize DHT11 temperature & humidity sensor
+Soil_Analog_Init();              // Initialize ADC settings for soil sensor
+Pump_Init();                     // Setup pump output pin
+
 
     uint8_t temperature = 0, humidity = 0;
     uint16_t ldr_value;
     uint8_t soil_percent;
     uint8_t pumpStatus = 0;
     uint8_t lightStatus = 0;
-    char msg[128];
+    char msg[128];                // Buffer to send data to ESP32
 
     while (1)
     {
-        // DHT11
+        // ==== Read DHT11 ====
         if (DHT11_Read_Data(&temperature, &humidity) != 0) {
             temperature = 0;
             humidity = 0;
         }
 
-        // light
+         // ==== Read Light (LDR) ====
         ldr_value = LDR_Read();
         if (ldr_value < 200) {
-            GPIOA->BSRR = (1 << 5);         // PA5 HIGH
+            GPIOA->BSRR = (1 << 5);         // Set PA5 HIGH to turn ON light
             lightStatus = 1;
         } else {
-            GPIOA->BSRR = (1 << (5 + 16));  // PA5 LOW
+            GPIOA->BSRR = (1 << (5 + 16));  // Reset PA5 (set LOW) to turn OFF light
             lightStatus = 0;
         }
 
 
-        // soil hum
+        // ==== Read Soil Moisture ====
         soil_percent = Soil_ReadPercent();
-        if (soil_percent < 50) {
+        if (soil_percent < 50) {             // Turn ON pump if soil is dry
             Pump_On();
             pumpStatus = 1;
-        } else {
+        } else {                             // Turn OFF pump if soil is wet enough
             Pump_Off();
             pumpStatus = 0;
         }
@@ -69,6 +71,6 @@ int main(void)
 
         HAL_I2C_Master_Transmit(&hi2c1, 0x42 << 1, (uint8_t*)msg, strlen(msg), HAL_MAX_DELAY);
 
-        HAL_Delay(2000);
+        HAL_Delay(2000);                      // Wait 2 seconds before next measurement
     }
 }
