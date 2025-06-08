@@ -1,24 +1,27 @@
 #include "dht11.h"
-
+   // Định nghĩa chân DHT11 đang kết nối
 #define DHT11_PORT GPIOA
 #define DHT11_PIN GPIO_PIN_1
-
+   // Dùng timer 1 để tạo delay micro giây
 extern TIM_HandleTypeDef htim1;
 
+   // Hàm delay micro giây sử dụng timer 1
 void delay_us(uint16_t us)
 {
-    __HAL_TIM_SET_COUNTER(&htim1, 0);
-    while (__HAL_TIM_GET_COUNTER(&htim1) < us);
+    __HAL_TIM_SET_COUNTER(&htim1, 0);           // Reset counter về 0
+    while (__HAL_TIM_GET_COUNTER(&htim1) < us); // Đợi đến khi đạt số us cần delay
 }
-
+     // Hàm khởi tạo DHT11 (hiện tại chỉ bật clock GPIOA)
 void DHT11_Init(void)
 {
-    __HAL_RCC_GPIOA_CLK_ENABLE();
+    __HAL_RCC_GPIOA_CLK_ENABLE();       // Bật xung clock cho GPIOA
 }
 
+      // Hàm đọc dữ liệu từ DHT11
+      // Trả về 0 nếu thành công, 1 nếu không có phản hồi, 2 nếu sai checksum
 int DHT11_Read_Data(uint8_t *temperature, uint8_t *humidity)
 {
-    uint8_t data[5] = {0};
+    uint8_t data[5] = {0};        // Mảng lưu 5 byte dữ liệu đọc được từ cảm biến
 
     // === Step 1: Send start signal ===
     RCC->AHB1ENR |= RCC_AHB1ENR_GPIOAEN; // Đảm bảo đã cấp xung GPIOA
