@@ -1,37 +1,40 @@
 #include "ldr.h"
-
+    // Khai báo handler cho ADC1
 ADC_HandleTypeDef hadc1;
+    // Hàm khởi tạo ADC1
 void MX_ADC1_Init(void)
 {
-    __HAL_RCC_ADC1_CLK_ENABLE();
+    __HAL_RCC_ADC1_CLK_ENABLE();                    // Bật clock cho ADC1
 
-    hadc1.Instance = ADC1;
-    hadc1.Init.Resolution = ADC_RESOLUTION_12B;
-    hadc1.Init.ScanConvMode = DISABLE;
-    hadc1.Init.ContinuousConvMode = DISABLE;
-    hadc1.Init.DiscontinuousConvMode = DISABLE;
-    hadc1.Init.DataAlign = ADC_DATAALIGN_RIGHT;
-    hadc1.Init.NbrOfConversion = 1;
-    hadc1.Init.ExternalTrigConv = ADC_SOFTWARE_START;
+    hadc1.Instance = ADC1;                            // Chọn ADC1
+    hadc1.Init.Resolution = ADC_RESOLUTION_12B;       // Độ phân giải 12 bit (0–4095)
+    hadc1.Init.ScanConvMode = DISABLE;                // Không quét nhiều kênh
+    hadc1.Init.ContinuousConvMode = DISABLE;          // Không chuyển đổi liên tục (chỉ khi gọi thủ công)
+    hadc1.Init.DiscontinuousConvMode = DISABLE;       // Không chia nhỏ chuyển đổi
+    hadc1.Init.DataAlign = ADC_DATAALIGN_RIGHT;       // Canh phải dữ liệu ADC
+    hadc1.Init.NbrOfConversion = 1;                   // Chỉ đọc 1 kênh
+    hadc1.Init.ExternalTrigConv = ADC_SOFTWARE_START; // Bắt đầu chuyển đổi bằng phần mềm
 
-    HAL_ADC_Init(&hadc1);
+
+    HAL_ADC_Init(&hadc1);                             // Gọi hàm khởi tạo ADC của HAL
 }
 
 uint16_t LDR_Read(void)
 {
     ADC_ChannelConfTypeDef sConfig = {0};
-    sConfig.Channel = ADC_CHANNEL_0; // PA0
-    sConfig.Rank = 1;
-    sConfig.SamplingTime = ADC_SAMPLETIME_3CYCLES;
-    HAL_ADC_ConfigChannel(&hadc1, &sConfig);
+    sConfig.Channel = ADC_CHANNEL_0; // Đọc kênh ADC số 0 (tương ứng chân PA0)
+    sConfig.Rank = 1;                // Ưu tiên chuyển đổi (duy nhất nên là 1)
+    sConfig.SamplingTime = ADC_SAMPLETIME_3CYCLES; // Thời gian lấy mẫu (rất nhanh)
+    HAL_ADC_ConfigChannel(&hadc1, &sConfig); // Áp dụng cấu hình cho kênh
 
-    HAL_ADC_Start(&hadc1);
-    HAL_ADC_PollForConversion(&hadc1, HAL_MAX_DELAY);
-    uint16_t value = HAL_ADC_GetValue(&hadc1);
-    HAL_ADC_Stop(&hadc1);
+    HAL_ADC_Start(&hadc1);                            // Bắt đầu chuyển đổi ADC
+    HAL_ADC_PollForConversion(&hadc1, HAL_MAX_DELAY); // Đợi kết quả
+    uint16_t value = HAL_ADC_GetValue(&hadc1);        // Lấy giá trị đã chuyển đổi
+    HAL_ADC_Stop(&hadc1);                             // Dừng ADC
 
-    return value;
+    return value;                                              // Trả về giá trị ánh sáng (0 → tối, 4095 → sáng)
 }
+} 
 void MX_GPIO_Init(void)
 {
     // 1. Enable GPIOA clock
